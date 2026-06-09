@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1024">
+    <title>Vijay Enterprise</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        /* ================= 1. OFFLINE FONT SETUP ================= */
+        @font-face { font-family: 'Anek Gujarati'; src: url('anek.ttf') format('truetype'); font-weight: 700; font-style: normal; }
+
+        /* ================= 2. THEMES & VARIABLES ================= */
+        :root {
+            --trip-main: #1e3a8a; --trip-light: #eff6ff;
+            --diesel-main: #d97706; --diesel-light: #fffbeb;
+            --gray-100: #f3f4f6; --gray-300: #d1d5db; --text-main: #111827; --text-muted: #4b5563;
+        }
+        
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background-color: var(--gray-100); color: var(--text-main); font-size: 13px; min-width: 980px; min-height: 100vh; }
+        .hidden { display: none !important; }
+
+        /* Hide the app UI completely when the custom Print engine takes over */
+        body.is-printing > *:not(#print-view) { display: none !important; }
+        body.is-printing #print-view { display: block !important; }
+        #print-view { display: none; background: white; width: 100%; min-height: 100vh; padding: 20px; }
+
+        /* ================= HOME DASHBOARD ================= */
+        #home-screen { padding: 40px 20px; max-width: 650px; margin: 0 auto; text-align: center; }
+        .home-logo { width: 120px; height: 120px; margin-bottom: 10px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .home-header h1 { margin: 15px 0 0 0; color: var(--trip-main); font-size: 32px; font-weight: 800; text-transform: uppercase; }
+        .home-header p { margin: 5px 0 0 0; color: var(--text-muted); font-size: 15px; font-weight: 600; }
+        
+        /* Gujarati Slogan on Main Menu */
+        .home-quote { font-family: 'Anek Gujarati', sans-serif; color: var(--trip-main); font-size: 38px; font-weight: 700; margin: 25px 0 5px 0; line-height: 1.2; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .home-author { font-family: 'Anek Gujarati', sans-serif; color: var(--text-muted); font-size: 22px; font-weight: 700; margin-bottom: 40px; }
+        
+        .menu-container { display: flex; flex-direction: column; gap: 20px; }
+        .menu-btn { background: white; border: 2px solid transparent; border-radius: 12px; padding: 25px 30px; font-size: 22px; font-weight: 700; color: var(--trip-main); cursor: pointer; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: all 0.2s ease; text-transform: uppercase; }
+        .menu-btn:active { transform: scale(0.98); background-color: #f8fafc; }
+        .menu-btn-icon { background-color: var(--trip-light); padding: 12px 18px; border-radius: 8px; font-size: 26px; }
+        .menu-btn.diesel { color: var(--diesel-main); }
+        .menu-btn.diesel .menu-btn-icon { background-color: var(--diesel-light); }
+
+        /* ================= COMMON WORKSPACE ================= */
+        .view-container { max-width: 1000px; margin: 0 auto; padding: 0; }
+        .view-navigation { margin-bottom: 15px; }
+        .back-btn { background-color: var(--text-main); color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        
+        .app-header { display: flex; align-items: center; justify-content: space-between; background: white; padding: 20px 30px; border-radius: 8px 8px 0 0; border-bottom: 5px solid var(--trip-main); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .app-header.theme-diesel { border-bottom-color: var(--diesel-main); }
+        .header-title h1 { margin: 0; font-size: 28px; font-weight: 800; text-transform: uppercase; color: var(--trip-main); }
+        .app-header.theme-diesel .header-title h1 { color: var(--diesel-main); }
+        .header-title h2 { margin: 2px 0 0 0; font-size: 14px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;}
+        .header-info { text-align: right; }
+        .header-info p { margin: 3px 0; font-size: 13px; color: var(--text-muted); }
+
+        .form-section { background: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; gap: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-bottom: 1px solid var(--gray-300); }
+        .input-row { display: flex; gap: 20px; flex: 1; }
+        .form-group { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .form-group label { font-size: 14px; font-weight: bold; color: var(--trip-main); white-space: nowrap; }
+        .theme-diesel + .form-section .form-group label { color: var(--diesel-main); }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 14px; font-weight: bold;}
+
+        .table-responsive { background: white; padding: 0 30px 30px 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid var(--gray-300); padding: 4px 6px; text-align: left; height: 32px; }
+        
+        #trip-table th { background-color: var(--trip-main); color: white; font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        #diesel-table th { background-color: var(--diesel-main); color: white; font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        input.cell-input { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; box-sizing: border-box; padding: 4px 2px; }
+        input.cell-input:focus { background-color: #f8fafc; }
+        .col-sr { width: 30px; text-align: center; font-weight: bold; color: #6b7280; }
+        .col-del { width: 35px; text-align: center; }
+        .del-btn { color: #ef4444; font-weight: bold; background: none; border: none; cursor: pointer; font-size: 20px; padding: 0; }
+
+        .actions { display: flex; gap: 15px; margin-top: 25px; justify-content: center; flex-wrap: wrap; }
+        .action-btn { padding: 14px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; min-width: 140px; font-size: 14px; text-transform: uppercase; }
+        .action-btn:active { opacity: 0.8; }
+        
+        .btn-add-row { background-color: #3b82f6; padding: 10px 15px; min-width: auto; font-size: 13px; margin-top: 15px; border-radius: 4px; }
+        .btn-clear { background-color: #ef4444; }
+        .btn-save { background-color: #10b981; }
+        .btn-print { background-color: #4b5563; }
+        .btn-pdf { background-color: #dc2626; }
+        .btn-wa { background-color: #16a34a; }
+    </style>
+</head>
+<body>
+
+    <div id="print-view"></div>
+
+    <datalist id="truck-list">
+        <option value="MH-12-AB-1234">
+        <option value="MH-14-CD-5678">
+        <option value="GJ-01-EF-9012">
+    </datalist>
+
+    <div id="home-screen">
+        <div class="home-header">
+            <picture>
+                <source srcset="icon_white.png" media="(prefers-color-scheme: dark)">
+                <img class="home-logo" src="icon_black.png" alt="Logo">
+            </picture>
+            <h1 style="color: var(--trip-main);">Vijay Enterprise</h1>
+            <p>Bhachau, Kachchh</p>
+            
+            <div class="home-quote">"એ જેવો તેવો આયર નોતો"</div>
+            <div class="home-author">— રૂપલો આયર</div>
+        </div>
+        <div class="menu-container">
+            <button class="menu-btn" onclick="navigateTo('trip-bill-view')">
+                <span>Trip Bill</span>
+                <span class="menu-btn-icon">🚛</span>
+            </button>
+            <button class="menu-btn diesel" onclick="navigateTo('diesel-bill-view')">
+                <span>Diesel Bill</span>
+                <span class="menu-btn-icon">⛽</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="trip-bill-view" class="view-container hidden">
+        <div class="view-navigation">
+            <button class="back-btn" onclick="navigateTo('home-screen')">⬅ Back to Home Menu</button>
+        </div>
+        <div class="app-header">
+            <div class="header-title">
+                <h1>Vijay Enterprise</h1>
+                <h2>Trip Bill</h2>
+            </div>
+            <div class="header-info">
+                <p><strong>Address:</strong> Bhachau, Kachchh</p>
+                <p><strong>Contact:</strong> Rupesh Ahir | <strong>Mob:</strong> 9979762611</p>
+            </div>
+        </div>
+        <div class="form-section">
+            <div class="input-row">
+                <div class="form-group">
+                    <label>Party Name:</label>
+                    <input type="text" id="trip-party-name" placeholder="Enter Party Name..." oninput="saveTripData()">
+                </div>
+                <div class="form-group">
+                    <label>Material:</label>
+                    <input type="text" id="trip-material-name" placeholder="Enter Material Name..." oninput="saveTripData()">
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="trip-table">
+                <thead>
+                    <tr>
+                        <th class="col-sr">#</th>
+                        <th style="width: 85px;">Bill No</th>
+                        <th style="width: 120px;">Date</th>
+                        <th style="width: 85px;">Slip No.</th>
+                        <th>Vehicle No.</th>
+                        <th style="width: 95px;">Weight (MT)</th>
+                        <th style="width: 95px;">Rate (Rs)</th>
+                        <th style="width: 125px;">Amount</th>
+                        <th class="col-del no-print">X</th>
+                    </tr>
+                </thead>
+                <tbody id="trip-tbody"></tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="5" style="text-align:right">Grand Total:</th>
+                        <th id="trip-total-weight" style="font-size: 14px;">0.00</th>
+                        <th></th>
+                        <th id="trip-total-amount" style="font-size: 14px;">0.00</th>
+                        <th class="col-del no-print"></th>
+                    </tr>
+                </tfoot>
+            </table>
+            <div style="text-align: left;">
+                <button class="action-btn btn-add-row" onclick="manualAddTripRow()">+ Add Row</button>
+            </div>
+            <div class="actions">
+                <button class="action-btn btn-clear" onclick="clearTripData()">Clear All</button>
+                <button class="action-btn btn-save" id="trip-save-btn" onclick="manualTripSave()">Save Data</button>
+                <button class="action-btn btn-print" onclick="execPrint('trip')">Print Document</button>
+                <button class="action-btn btn-pdf" onclick="handleSaveTripPDF()">Save PDF</button>
+                <button class="action-btn btn-wa" onclick="handleTripWhatsApp()">WhatsApp Share</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="diesel-bill-view" class="view-container hidden">
+        <div class="view-navigation">
+            <button class="back-btn" onclick="navigateTo('home-screen')">⬅ Back to Home Menu</button>
+        </div>
+        <div class="app-header theme-diesel">
+            <div class="header-title">
+                <h1>Vijay Enterprise</h1>
+                <h2>Diesel Statement</h2>
+            </div>
+            <div class="header-info">
+                <p><strong>Address:</strong> Bhachau, Kachchh</p>
+                <p><strong>Contact:</strong> Rupesh Ahir | <strong>Mob:</strong> 9979762611</p>
+            </div>
+        </div>
+        <div class="form-section">
+            <div class="form-group">
+                <label>Party Name:</label>
+                <input type="text" id="diesel-party-name" placeholder="Enter Party Name..." oninput="saveDieselData()">
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="diesel-table">
+                <thead>
+                    <tr>
+                        <th class="col-sr">#</th>
+                        <th style="width: 140px;">Date</th>
+                        <th>Truck No.</th>
+                        <th style="width: 110px;">Qty (Ltrs)</th>
+                        <th style="width: 110px;">Rate (Rs)</th>
+                        <th style="width: 130px;">Amount</th>
+                        <th class="col-del no-print">X</th>
+                    </tr>
+                </thead>
+                <tbody id="diesel-tbody"></tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" style="text-align:right">Grand Total:</th>
+                        <th id="diesel-total-liters" style="font-size: 14px;">0.00</th>
+                        <th></th>
+                        <th id="diesel-total-amount" style="font-size: 14px;">0.00</th>
+                        <th class="col-del no-print"></th>
+                    </tr>
+                </tfoot>
+            </table>
+            <div style="text-align: left;">
+                <button class="action-btn btn-add-row" onclick="manualAddDieselRow()">+ Add Row</button>
+            </div>
+            <div class="actions">
+                <button class="action-btn btn-clear" onclick="clearDieselData()">Clear All</button>
+                <button class="action-btn btn-save" id="diesel-save-btn" onclick="manualDieselSave()">Save Data</button>
+                <button class="action-btn btn-print" onclick="execPrint('diesel')">Print Document</button>
+                <button class="action-btn btn-pdf" onclick="handleSaveDieselPDF()">Save PDF</button>
+                <button class="action-btn btn-wa" onclick="handleDieselWhatsApp()">WhatsApp Share</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const THEMES = { trip: { rgb: [30, 58, 138], hex: '#1e3a8a' }, diesel: { rgb: [217, 119, 6], hex: '#d97706' } };
+
+        window.addEventListener('DOMContentLoaded', () => { loadAllData(); });
+
+        function navigateTo(viewId) {
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('trip-bill-view').classList.add('hidden');
+            document.getElementById('diesel-bill-view').classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        // ================= CUSTOM PRINT ENGINE (NO LOGOS, CHAVDA HEADER) =================
+        function execPrint(type) {
+            const isTrip = type === 'trip';
+            const color = THEMES[type].hex;
+            const title = isTrip ? "TRIP BILL" : "DIESEL STATEMENT";
+            const party = isTrip ? document.getElementById('trip-party-name').value : document.getElementById('diesel-party-name').value;
+            const material = isTrip ? document.getElementById('trip-material-name').value : '';
+            const dateStr = new Date().toLocaleDateString('en-GB');
+            const originalTable = document.getElementById(isTrip ? 'trip-table' : 'diesel-table');
+
+            let printHTML = `
+            <div style="width:100%; font-family: sans-serif; color: black; background: white; min-height: 100vh;">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h1 style="color: ${color}; margin: 0; font-size: 26px; text-transform: uppercase;">CHAVDA BHUPATBHAI KANABHAI</h1>
+                    <p style="margin: 5px 0; color: #555; font-size: 13px;">Bhachau, Kachchh | Contact: Rupesh Ahir | Mob.: 9979762611</p>
+                </div>
+                <div style="border-bottom: 2px solid ${color}; margin-bottom: 15px;"></div>
+                
+                <h2 style="text-align: center; font-size: 18px; margin: 10px 0; font-weight: bold;">${title}</h2>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 15px;">
+                    <div><strong>Party Name:</strong> ${party || 'N/A'} <br>${isTrip ? `<strong>Material:</strong> ${material || 'N/A'}` : ''}</div>
+                    <div><strong>Date:</strong> ${dateStr}</div>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
+                    <thead><tr style="background-color: ${color}; color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact;">`;
+            
+            const thead = originalTable.querySelector('thead');
+            Array.from(thead.querySelectorAll('th')).forEach(th => {
+                if(!th.classList.contains('col-del')) printHTML += `<th style="border: 1px solid #000; padding: 6px; text-align: left;">${th.textContent}</th>`;
+            });
+            printHTML += `</tr></thead><tbody>`;
+
+            const tbody = originalTable.querySelector('tbody');
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                const inputs = Array.from(row.querySelectorAll('.cell-input'));
+                const hasData = inputs.some(i => i.value.trim() !== '');
+                if (hasData) {
+                    printHTML += '<tr>';
+                    printHTML += `<td style="border: 1px solid #000; padding: 6px; text-align: center;">${row.querySelector('.col-sr').textContent}</td>`;
+                    inputs.forEach(input => {
+                        let val = input.value;
+                        if (input.type === 'date' && val) val = val.split('-').reverse().join('-');
+                        printHTML += `<td style="border: 1px solid #000; padding: 6px; text-align: ${input.classList.contains('amt-input') ? 'right' : 'left'}; font-weight: ${input.classList.contains('amt-input') ? 'bold' : 'normal'};">${val}</td>`;
+                    });
+                    printHTML += '</tr>';
+                }
+            });
+
+            const tfoot = originalTable.querySelector('tfoot');
+            printHTML += `</tbody><tfoot style="background-color: #f3f4f6; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;"><tr>`;
+            Array.from(tfoot.querySelectorAll('th')).forEach(th => {
+                if(!th.classList.contains('col-del')) {
+                    const colspan = th.getAttribute('colspan') ? `colspan="${th.getAttribute('colspan')}"` : '';
+                    printHTML += `<td ${colspan} style="border: 1px solid #000; padding: 6px; text-align: ${th.style.textAlign || 'left'};">${th.textContent}</td>`;
+                }
+            });
+            printHTML += `</tr></tfoot></table></div>`;
+
+            const printContainer = document.getElementById('print-view');
+            printContainer.innerHTML = printHTML;
+            document.body.classList.add('is-printing');
+            
+            setTimeout(() => { window.print(); setTimeout(() => { document.body.classList.remove('is-printing'); printContainer.innerHTML = ''; }, 500); }, 300);
+        }
+
+        // ================= TRIP BILL LOGIC =================
+        const tripTbody = document.getElementById('trip-tbody');
+        const tripParty = document.getElementById('trip-party-name');
+        const tripMaterial = document.getElementById('trip-material-name');
+
+        function getTripRow(sr=1, b='', d='', s='', v='', w='', r='', a='') {
+            return `<tr>
+                <td class="col-sr">${sr}</td>
+                <td><input type="text" class="cell-input" value="${b}" oninput="calcTrip(this)"></td>
+                <td><input type="date" class="cell-input" value="${d}" oninput="calcTrip(this)"></td>
+                <td><input type="text" class="cell-input" value="${s}" oninput="calcTrip(this)"></td>
+                <td><input type="text" class="cell-input" list="truck-list" value="${v}" oninput="calcTrip(this)"></td>
+                <td><input type="number" class="cell-input weight-input" value="${w}" oninput="calcTrip(this)"></td>
+                <td><input type="number" class="cell-input rate-input" value="${r}" oninput="calcTrip(this)"></td>
+                <td><input type="number" class="cell-input amt-input" value="${a}" readonly tabindex="-1" style="font-weight:bold;"></td>
+                <td class="col-del"><button class="del-btn" onclick="delTripRow(this)" tabindex="-1">×</button></td>
+            </tr>`;
+        }
+
+        function updateTripSr() { Array.from(tripTbody.children).forEach((r, i) => r.querySelector('.col-sr').textContent = i+1); }
+
+        function calcTrip(input) {
+            const r = input ? input.closest('tr') : null;
+            if (r) {
+                const w = parseFloat(r.querySelector('.weight-input').value) || 0;
+                const rt = parseFloat(r.querySelector('.rate-input').value) || 0;
+                r.querySelector('.amt-input').value = (w && rt) ? (w * rt).toFixed(2) : '';
+                
+                const inputs = Array.from(r.querySelectorAll('.cell-input'));
+                const hasData = inputs.some(i => i.value.trim() !== '' && !i.readOnly);
+                if (r === tripTbody.lastElementChild && hasData) manualAddTripRow();
+            }
+            let tw = 0, ta = 0;
+            tripTbody.querySelectorAll('tr').forEach(row => { tw += parseFloat(row.querySelector('.weight-input').value) || 0; ta += parseFloat(row.querySelector('.amt-input').value) || 0; });
+            document.getElementById('trip-total-weight').textContent = tw.toFixed(2);
+            document.getElementById('trip-total-amount').textContent = ta.toFixed(2);
+            saveTripData();
+        }
+
+        function manualAddTripRow() { tripTbody.insertAdjacentHTML('beforeend', getTripRow(tripTbody.children.length + 1)); saveTripData(); }
+        function delTripRow(btn) {
+            if (tripTbody.children.length > 1) { btn.closest('tr').remove(); updateTripSr(); } 
+            else { btn.closest('tr').querySelectorAll('input').forEach(i => i.value = ''); }
+            calcTrip(); saveTripData();
+        }
+
+        function saveTripData() {
+            const rows = Array.from(tripTbody.querySelectorAll('tr')).map(r => {
+                const inputs = r.querySelectorAll('.cell-input');
+                return { b: inputs[0].value, d: inputs[1].value, s: inputs[2].value, v: inputs[3].value, w: inputs[4].value, r: inputs[5].value, a: inputs[6].value };
+            });
+            localStorage.setItem('vj_trip_db', JSON.stringify({ p: tripParty.value, m: tripMaterial.value, rows }));
+        }
+
+        function manualTripSave() { saveTripData(); feedbackBtn('trip-save-btn'); }
+        function clearTripData() {
+            if(confirm("Are you sure you want to clear ALL Trip data?")) { tripParty.value=''; tripMaterial.value=''; tripTbody.innerHTML = getTripRow(); calcTrip(); localStorage.removeItem('vj_trip_db'); }
+        }
+
+        // ================= DIESEL BILL LOGIC =================
+        const dieselTbody = document.getElementById('diesel-tbody');
+        const dieselParty = document.getElementById('diesel-party-name');
+
+        function getDieselRow(sr=1, d='', t='', l='', r='', a='') {
+            return `<tr>
+                <td class="col-sr">${sr}</td>
+                <td><input type="date" class="cell-input" value="${d}" oninput="calcDiesel(this)"></td>
+                <td><input type="text" class="cell-input" list="truck-list" value="${t}" oninput="calcDiesel(this)"></td>
+                <td><input type="number" class="cell-input liter-input" value="${l}" oninput="calcDiesel(this)"></td>
+                <td><input type="number" class="cell-input rate-input" value="${r}" oninput="calcDiesel(this)"></td>
+                <td><input type="number" class="cell-input amt-input" value="${a}" readonly tabindex="-1" style="font-weight:bold;"></td>
+                <td class="col-del"><button class="del-btn" onclick="delDieselRow(this)" tabindex="-1">×</button></td>
+            </tr>`;
+        }
+
+        function updateDieselSr() { Array.from(dieselTbody.children).forEach((r, i) => r.querySelector('.col-sr').textContent = i+1); }
+
+        function calcDiesel(input) {
+            const r = input ? input.closest('tr') : null;
+            if (r) {
+                const l = parseFloat(r.querySelector('.liter-input').value) || 0;
+                const rt = parseFloat(r.querySelector('.rate-input').value) || 0;
+                r.querySelector('.amt-input').value = (l && rt) ? (l * rt).toFixed(2) : '';
+                
+                const inputs = Array.from(r.querySelectorAll('.cell-input'));
+                const hasData = inputs.some(i => i.value.trim() !== '' && !i.readOnly);
+                if (r === dieselTbody.lastElementChild && hasData) manualAddDieselRow();
+            }
+            let tl = 0, ta = 0;
+            dieselTbody.querySelectorAll('tr').forEach(row => { tl += parseFloat(row.querySelector('.liter-input').value) || 0; ta += parseFloat(row.querySelector('.amt-input').value) || 0; });
+            document.getElementById('diesel-total-liters').textContent = tl.toFixed(2);
+            document.getElementById('diesel-total-amount').textContent = ta.toFixed(2);
+            saveDieselData();
+        }
+
+        function manualAddDieselRow() { dieselTbody.insertAdjacentHTML('beforeend', getDieselRow(dieselTbody.children.length + 1)); saveDieselData(); }
+        function delDieselRow(btn) {
+            if (dieselTbody.children.length > 1) { btn.closest('tr').remove(); updateDieselSr(); } 
+            else { btn.closest('tr').querySelectorAll('input').forEach(i => i.value = ''); }
+            calcDiesel(); saveDieselData();
+        }
+
+        function saveDieselData() {
+            const rows = Array.from(dieselTbody.querySelectorAll('tr')).map(r => {
+                const inputs = r.querySelectorAll('.cell-input');
+                return { d: inputs[0].value, t: inputs[1].value, l: inputs[2].value, r: inputs[3].value, a: inputs[4].value };
+            });
+            localStorage.setItem('vj_diesel_db', JSON.stringify({ p: dieselParty.value, rows }));
+        }
+
+        function manualDieselSave() { saveDieselData(); feedbackBtn('diesel-save-btn'); }
+        function clearDieselData() {
+            if(confirm("Are you sure you want to clear ALL Diesel data?")) { dieselParty.value=''; dieselTbody.innerHTML = getDieselRow(); calcDiesel(); localStorage.removeItem('vj_diesel_db'); }
+        }
+
+        // ================= SHARED LOGIC & PDF BUILDER (NO LOGOS, CHAVDA HEADER) =================
+        function loadAllData() {
+            const tD = JSON.parse(localStorage.getItem('vj_trip_db') || 'null');
+            if (tD) {
+                tripParty.value = tD.p || ''; tripMaterial.value = tD.m || '';
+                if(tD.rows.length) { tripTbody.innerHTML=''; tD.rows.forEach((r,i) => tripTbody.insertAdjacentHTML('beforeend', getTripRow(i+1, r.b, r.d, r.s, r.v, r.w, r.r, r.a))); calcTrip(); }
+                else { tripTbody.innerHTML = getTripRow(); }
+            } else { tripTbody.innerHTML = getTripRow(); }
+
+            const dD = JSON.parse(localStorage.getItem('vj_diesel_db') || 'null');
+            if (dD) {
+                dieselParty.value = dD.p || '';
+                if(dD.rows.length) { dieselTbody.innerHTML=''; dD.rows.forEach((r,i) => dieselTbody.insertAdjacentHTML('beforeend', getDieselRow(i+1, r.d, r.t, r.l, r.r, r.a))); calcDiesel(); }
+                else { dieselTbody.innerHTML = getDieselRow(); }
+            } else { dieselTbody.innerHTML = getDieselRow(); }
+        }
+
+        function feedbackBtn(id) {
+            const b = document.getElementById(id); const t = b.textContent;
+            b.textContent = 'Saved!'; b.style.backgroundColor = '#16a34a';
+            setTimeout(() => { b.textContent = t; b.style.backgroundColor = ''; }, 2000);
+        }
+
+        function buildBasePDF(title, party, type) {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF({ format: 'a4' });
+            const color = THEMES[type].rgb;
+            
+            // Clean, centered header without logos
+            doc.setTextColor(color[0], color[1], color[2]); 
+            doc.setFontSize(18); 
+            doc.setFont(undefined, 'bold'); 
+            doc.text("CHAVDA BHUPATBHAI KANABHAI", 105, 20, { align: 'center' });
+            
+            doc.setTextColor(80, 80, 80); 
+            doc.setFontSize(10); 
+            doc.setFont(undefined, 'normal');
+            doc.text("Bhachau, Kachchh | Contact: Rupesh Ahir | Mob.: 9979762611", 105, 26, { align: 'center' });
+            
+            doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.5); doc.line(14, 32, 196, 32);
+            
+            doc.setTextColor(0, 0, 0); doc.setFontSize(12); doc.setFont(undefined, 'bold'); 
+            doc.text(title, 105, 42, { align: 'center' });
+            
+            doc.setFontSize(10); doc.text(`Party Name: ${party || 'N/A'}`, 14, 52);
+            doc.setFont(undefined, 'normal'); doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 52, { align: 'right' });
+            if (type === 'trip') { doc.setFont(undefined, 'bold'); doc.text(`Material: ${tripMaterial.value || 'N/A'}`, 14, 58); }
+            
+            return doc;
+        }
+
+        function handleSaveTripPDF(preventDownload = false) {
+            const doc = buildBasePDF("TRIP BILL", tripParty.value, 'trip');
+            const data = []; let idx = 1;
+            tripTbody.querySelectorAll('tr').forEach(r => {
+                const inputs = r.querySelectorAll('.cell-input');
+                const b = inputs[0].value.trim(), d = inputs[1].value, s = inputs[2].value.trim(), v = inputs[3].value.trim();
+                const w = parseFloat(inputs[4].value), rt = parseFloat(inputs[5].value), a = parseFloat(inputs[6].value);
+                if (b||d||s||v||w||rt) data.push([idx++, b, d?d.split('-').reverse().join('-'):'', s, v, isNaN(w)?'':w.toFixed(2), isNaN(rt)?'':rt.toFixed(2), isNaN(a)?'':a.toFixed(2)]);
+            });
+            doc.autoTable({
+                head: [['Sr.No', 'Bill No', 'Date', 'Slip No.', 'Vehicle No.', 'Weight (MT)', 'Rate (Rs)', 'Amount']], body: data,
+                foot: [['', '', '', '', 'GRAND TOTAL:', document.getElementById('trip-total-weight').textContent, '', document.getElementById('trip-total-amount').textContent]],
+                startY: 63, theme: 'grid', styles: { fontSize: 8, cellPadding: {top:1.5, right:2, bottom:1.5, left:2}, valign: 'middle', lineColor: [200,200,200], lineWidth: 0.1 },
+                headStyles: { fillColor: THEMES.trip.rgb, textColor: [255,255,255], fontStyle: 'bold' }, footStyles: { fillColor: [245,245,245], fontStyle: 'bold' },
+                columnStyles: { 0: {halign:'center', cellWidth:10}, 5: {halign:'right'}, 6: {halign:'right'}, 7: {halign:'right', fontStyle:'bold'} }
+            });
+            if (!preventDownload) { doc.save(`Trip_Bill_${(tripParty.value||'N/A').replace(/\s+/g,'_')}.pdf`); }
+            return doc;
+        }
+
+        function handleSaveDieselPDF(preventDownload = false) {
+            const doc = buildBasePDF("DIESEL STATEMENT", dieselParty.value, 'diesel');
+            const data = []; let idx = 1;
+            dieselTbody.querySelectorAll('tr').forEach(r => {
+                const inputs = r.querySelectorAll('.cell-input');
+                const d = inputs[0].value, t = inputs[1].value.trim();
+                const l = parseFloat(inputs[2].value), rt = parseFloat(inputs[3].value), a = parseFloat(inputs[4].value);
+                if (d||t||l||rt) data.push([idx++, d?d.split('-').reverse().join('-'):'', t, isNaN(l)?'':l.toFixed(2), isNaN(rt)?'':rt.toFixed(2), isNaN(a)?'':a.toFixed(2)]);
+            });
+            doc.autoTable({
+                head: [['Sr.No', 'Date', 'Truck No.', 'Qty (Ltrs)', 'Rate (Rs)', 'Amount']], body: data,
+                foot: [['', '', 'GRAND TOTAL:', document.getElementById('diesel-total-liters').textContent, '', document.getElementById('diesel-total-amount').textContent]],
+                startY: 58, theme: 'grid', styles: { fontSize: 8, cellPadding: {top:1.5, right:2, bottom:1.5, left:2}, valign: 'middle', lineColor: [200,200,200], lineWidth: 0.1 },
+                headStyles: { fillColor: THEMES.diesel.rgb, textColor: [255,255,255], fontStyle: 'bold' }, footStyles: { fillColor: [245,245,245], fontStyle: 'bold' },
+                columnStyles: { 0: {halign:'center', cellWidth:15}, 3: {halign:'right'}, 4: {halign:'right'}, 5: {halign:'right', fontStyle:'bold'} }
+            });
+            if (!preventDownload) { doc.save(`Diesel_Statement_${(dieselParty.value||'N/A').replace(/\s+/g,'_')}.pdf`); }
+            return doc;
+        }
+
+        // ================= GITHUB PWA WEB SHARE IMPLEMENTATION =================
+        async function triggerWA(docGenFunc, nameVal, typeLabel) {
+            try {
+                const doc = docGenFunc(true); 
+                const pdfBlob = doc.output('blob');
+                const fileName = `${typeLabel}_${(nameVal||'N/A').replace(/\s+/g,'_')}.pdf`;
+                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: fileName,
+                        text: `Here is the ${typeLabel} for ${nameVal || 'N/A'}.`,
+                        files: [file]
+                    });
+                } else {
+                    alert("Your current browser doesn't support direct file sharing. Downloading PDF instead.");
+                    doc.save(fileName);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Share canceled. Downloading PDF instead.");
+                docGenFunc(false); 
+            }
+        }
+
+        function handleTripWhatsApp() { triggerWA(handleSaveTripPDF, tripParty.value, "Trip_Bill"); }
+        function handleDieselWhatsApp() { triggerWA(handleSaveDieselPDF, dieselParty.value, "Diesel_Statement"); }
+    </script>
+</body>
+</html>
